@@ -1,0 +1,107 @@
+---
+title: "Análise de casos de Linfoma de Hodgkings e Não Hodgkings"
+author: "Beatriz Lima Silveira"
+format: pdf
+editor: visual
+---
+
+## Introdução
+
+Nesse relatório sera avaliado por meio de métodos de análise de sobrevivência, 43 pacientes com Linfoma de Hodgkins e Linfoma de não Hodgkings. O tempo de vida (em meses), bem como tipo de transplante realizado e qualidade de vida foi registrado.
+
+## Bibliotecas e Dados
+
+```{r, libs and data, warning=FALSE}
+
+# Libs
+
+library(survival)
+library(readr)
+library(survminer)
+library(data.table)
+
+### Data ###
+
+dt <- read_delim("HOD_NHL.csv", delim = ";",
+                 escape_double = FALSE, trim_ws = TRUE) |> as.data.table()
+
+### Data pre processing ###
+
+dt[, Karnofsky_cat := ifelse(Karnofsky >= 80, ">= 80", "< 80")]
+
+```
+
+## Curvas de Kaplan Meyer
+
+```{r curve, warning=FALSE, echo=T}
+### Kaplan Meyer Curve ###
+
+# Types of transplant
+fit_graft <- survfit(Surv(time = Time, event = D_R) ~ Graft,
+                   data = dt)
+
+#Category of escore of Karnofsky
+fit_escore <- survfit(Surv(time = Time, event = D_R) ~ Karnofsky_cat,
+                     data = dt)
+```
+
+Nesta seção será avaliado a curvas de kaplan meyer entre duas categorias. Tipos de implantes de medula óssea e bem-estar de vida.
+
+```{r graph graft, warning=F, echo=T}
+
+ggsurvplot(fit_graft, data = dt,
+           pval = TRUE, conf.int = TRUE, conf.int.style = "step",
+           ylab = "Sobrevida", xlab = "Tempo em dias",
+           legend.title = "Tipo de Linfoma")
+           #surv.median.line = "hv
+
+```
+
+Observando a curva, a interseções entre as curvas indica comportamento similar de tempo de sobrevivência entre os grupos. Aplicando o teste de log-rank, é possivel testar se os grupos tem comportamento similar ou não.
+
+```{r logran graft, warning=F, echo=T}
+
+logrank_graft <- survdiff(Surv(time = Time, event = D_R) ~ Graft,
+                    data = dt)
+logrank_graft
+```
+
+De forma análoga é possivel aplicar o teste de Wilcoxon (Breslow) para comparar curvas.
+
+```{r wilcoxon graft, warning=F, echo=T}
+wilconxon_escore <- survdiff(Surv(time = Time, event = D_R) ~ Graft, rho = 1,
+                      data = dt)
+wilconxon_escore
+```
+
+Observando os resultados dos testes , é possivel perceber que ambos grupos\
+não apresentam valores observados muito discrepantes dos valores esperados\
+calculado por meio do teste qui-quadrado em ambos testes.
+
+Analogamente, observamos o gráfico de kaplan meyer dos grupos de escore de Karnofsky.
+
+```{r graph escore, warning=F, echo=T}
+ggsurvplot(fit_escore, data = dt,
+           pval = TRUE, conf.int = TRUE, conf.int.style = "step",
+           ylab = "Sobrevida", xlab = "Tempo em dias",
+           legend.title = "Tipo de Linfoma")
+           #surv.median.line = "hv")
+
+logrank_escore <- survdiff(Surv(time = Time, event = D_R) ~ Graft,
+                    data = dt)
+logrank_escore
+
+wilconxon_escore <- survdiff(Surv(time = Time, event = D_R) ~ Graft, rho = 1,
+                      data = dt)
+wilconxon_escore
+
+```
+
+O gráfico bem como o teste de logrank e o teste de wilcoxon demonstram que as curvas possuem comportamento similar ao longo do tempo.
+
+## Modelo Weibull
+
+```{r}
+model_weibull <- survreg(Surv(Time, D_R) ~ ., data = dt, dist = "weibull")
+
+```
